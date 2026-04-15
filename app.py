@@ -1,8 +1,8 @@
 import streamlit as st
 import time
 
-# 1. Page Configuration
-st.set_config(page_title="SteelFixer Pro", page_icon="🏗️", layout="wide")
+# 1. Page Configuration (CORRECTED FUNCTION NAME)
+st.set_page_config(page_title="SteelFixer Pro", page_icon="🏗️", layout="wide")
 
 # 2. Premium Dark UI Styling (CSS)
 st.markdown("""
@@ -64,22 +64,18 @@ st.subheader("Upload CAD Drawings")
 uploaded_files = st.file_uploader("Select DWG files to convert to 2013 version (AC1027)", type=['dwg'], accept_multiple_files=True)
 
 if uploaded_files:
-    # Use a placeholder to show processing status and clear it later
     status_placeholder = st.empty()
     status_placeholder.info("⏳ **System is processing your files with High-Precision logic...**")
     
-    # Simulate a small delay for premium feel and to ensure UI sync
     time.sleep(1) 
     
     cols = st.columns(2)
     for idx, uploaded_file in enumerate(uploaded_files):
         with cols[idx % 2]:
-            # Process File
             file_bytes = uploaded_file.getvalue()
             modified_content = bytearray(file_bytes)
-            modified_content[0:6] = b'AC1027' # Version 2013 Hack
+            modified_content[0:6] = b'AC1027' 
             
-            # Display Result in a Card
             st.markdown(f"""
                 <div class="file-card">
                     <h4 style="margin:0;">📄 {uploaded_file.name}</h4>
@@ -96,7 +92,6 @@ if uploaded_files:
                 use_container_width=True
             )
             
-    # CRITICAL: Clear the "Processing" message and show "Done"
     status_placeholder.success("✅ **All processes finished successfully!**")
 
 # 5. Fixed Footer Signature
