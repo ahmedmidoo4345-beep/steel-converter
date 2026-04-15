@@ -3,9 +3,9 @@ import fitz  # PyMuPDF
 import io
 
 # 1. Page Configuration
-st.set_page_config(page_title="SteelFixer Precision", page_icon="🏗️", layout="wide")
+st.set_page_config(page_title="SteelFixer Master", page_icon="🏗️", layout="wide")
 
-# 2. Premium Styling
+# 2. Ultra-Premium Styling
 st.markdown("""
     <style>
     .stApp { background-color: #0d1117; color: #c9d1d9; }
@@ -15,7 +15,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 3. Header & Navigation
-st.markdown("<h1 class='main-title'>🏗️ STEEL COORDINATOR PRECISION</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>🏗️ STEEL COORDINATOR MASTER</h1>", unsafe_allow_html=True)
 
 col_nav1, col_nav2 = st.columns(2)
 with col_nav1:
@@ -29,63 +29,68 @@ if pdf_mode: st.session_state.mode = 'pdf'
 
 st.write("---")
 
-# --- MODE 2: PDF REPLACER (With Advanced Font Handling) ---
+# --- MODE 2: PDF REPLACER (The Master Logic) ---
 if st.session_state.mode == 'pdf':
-    st.subheader("High-Precision PDF Text Replacement")
+    st.subheader("Master-Precision Text Replacement")
+    st.write("Replacing text while preserving the original engineering layout and style.")
     
-    with st.expander("🛠️ Advanced Font Settings (Optional)"):
-        selected_font = st.selectbox("Select Font Style to match your drawing:", 
-                                   ["helv", "cour", "tirom", "zapfdingbats"], 
-                                   help="helv = Standard, cour = Mono/Technical, tirom = Serif")
-        font_weight = st.slider("Fine-tune Font Size Adjustment:", 0.5, 1.5, 1.0)
+    with st.expander("🎨 Visual Fine-Tuning"):
+        font_selection = st.selectbox("Font Type:", ["helv", "cour", "tirom"], index=1, help="Use 'cour' (Courier) for CAD-like monospaced fonts.")
+        y_offset = st.slider("Vertical Alignment Offset:", -5.0, 5.0, 0.0, help="Adjust if text is too high or low.")
+        bold_effect = st.checkbox("Apply Bold Effect", value=False)
 
     c1, c2 = st.columns(2)
-    with c1: find_txt = st.text_input("FIND WHAT:")
+    with c1: find_txt = st.text_input("FIND WHAT (e.g. T-L-131-380MFTR-0034):")
     with c2: replace_txt = st.text_input("REPLACE WITH:")
         
     pdf_files = st.file_uploader("Upload PDF Drawings", type=['pdf'], accept_multiple_files=True)
 
     if pdf_files and find_txt and replace_txt:
-        if st.button("Execute Precision Replacement"):
+        if st.button("Execute Master Replacement"):
             for pdf in pdf_files:
                 doc = fitz.open(stream=pdf.read(), filetype="pdf")
                 modified = False
                 
                 for page in doc:
-                    text_instances = page.search_for(find_txt)
-                    for rect in text_instances:
-                        # 1. Capture exact Style
-                        dict_info = page.get_text("dict", clip=rect)
-                        try:
-                            span = dict_info["blocks"][0]["lines"][0]["spans"][0]
-                            orig_size = span["size"] * font_weight # Apply manual fine-tuning
-                            orig_color = span["color"]
-                            r = (orig_color >> 16) & 0xFF
-                            g = (orig_color >> 8) & 0xFF
-                            b = orig_color & 0xFF
-                            rgb_color = (r/255, g/255, b/255)
-                        except:
-                            orig_size = 10
-                            rgb_color = (0, 0, 0)
+                    # Search for text with metadata
+                    blocks = page.get_text("dict")["blocks"]
+                    for b in blocks:
+                        if "lines" in b:
+                            for l in b["lines"]:
+                                for s in l["spans"]:
+                                    if find_txt in s["text"]:
+                                        # Capture Original Metrics
+                                        orig_size = s["size"]
+                                        orig_color = s["color"]
+                                        # Get Origin point (The precise baseline start)
+                                        origin_x, origin_y = s["origin"]
+                                        
+                                        # RGB Color conversion
+                                        r = (orig_color >> 16) & 0xFF
+                                        g = (orig_color >> 8) & 0xFF
+                                        b_color = orig_color & 0xFF
+                                        rgb = (r/255, g/255, b_color/255)
 
-                        # 2. Clean Area
-                        page.add_redact_annot(rect, fill=(1, 1, 1))
-                        page.apply_redactions()
-                        
-                        # 3. Insert Text with "Overlay" logic
-                        # We use 'render_mode=0' to ensure it's not blurry
-                        page.insert_text(fitz.Point(rect.x0, rect.y1 - (orig_size * 0.2)), 
-                                        replace_txt, 
-                                        fontsize=orig_size, 
-                                        color=rgb_color,
-                                        fontname=selected_font)
-                        modified = True
+                                        # Redact the exact span area
+                                        page.add_redact_annot(s["bbox"], fill=(1, 1, 1))
+                                        page.apply_redactions()
+                                        
+                                        # Insert New Text using the exact Origin point
+                                        page.insert_text(
+                                            fitz.Point(origin_x, origin_y + y_offset), 
+                                            replace_txt, 
+                                            fontsize=orig_size, 
+                                            color=rgb,
+                                            fontname=font_selection,
+                                            render_mode=1 if bold_effect else 0 # 1 is outline (bold)
+                                        )
+                                        modified = True
                 
                 if modified:
                     out = io.BytesIO()
                     doc.save(out, garbage=3, deflate=True)
                     st.success(f"Success: {pdf.name}")
-                    st.download_button(f"Download {pdf.name}", data=out.getvalue(), file_name=f"Fixed_{pdf.name}")
+                    st.download_button(f"Download Fixed {pdf.name}", data=out.getvalue(), file_name=f"Modified_{pdf.name}")
                 doc.close()
 
 # --- MODE 1: DWG FIXER ---
@@ -98,4 +103,4 @@ else:
             content[0:6] = b'AC1027'
             st.download_button(f"Download Fixed {dwg.name}", data=bytes(content), file_name=f"Fixed_{dwg.name}")
 
-st.markdown(f"<div class='footer'>Created by Ahmed.Abdelmawgoud | Engineering Excellence</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='footer'>Created by Ahmed.Abdelmawgoud | Engineering Intelligence © 2026</div>", unsafe_allow_html=True)
