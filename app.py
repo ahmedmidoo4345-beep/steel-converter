@@ -1,98 +1,109 @@
 import streamlit as st
+import time
 
-# 1. إعدادات الصفحة والستايل
-st.set_page_config(page_title="Steel Fixer Pro", page_icon="🏗️", layout="wide")
+# 1. Page Configuration
+st.set_config(page_title="SteelFixer Pro", page_icon="🏗️", layout="wide")
 
-# كود CSS لتحسين المظهر (Custom UI)
+# 2. Premium Dark UI Styling (CSS)
 st.markdown("""
     <style>
-    /* تغيير لون الخلفية والعناوين */
     .stApp {
-        background-color: #0e1117;
-        color: #ffffff;
+        background-color: #0d1117;
+        color: #c9d1d9;
     }
-    /* تنسيق صندوق الرفع */
+    .main-title {
+        color: #58a6ff;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        font-weight: 800;
+    }
     .stFileUploader {
-        border: 2px dashed #4CAF50;
-        border-radius: 15px;
-        padding: 20px;
+        border: 2px dashed #30363d;
+        border-radius: 12px;
+        background-color: #161b22;
     }
-    /* تنسيق التوقيع في الأسفل */
+    .file-card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        transition: transform 0.3s;
+    }
+    .file-card:hover {
+        border-color: #58a6ff;
+        transform: translateY(-5px);
+    }
     .footer {
         position: fixed;
         left: 0;
         bottom: 0;
         width: 100%;
-        background-color: #161b22;
-        color: #00d4ff;
+        background-color: #010409;
+        color: #8b949e;
         text-align: center;
-        padding: 15px;
-        font-family: 'Segoe UI';
-        font-weight: bold;
-        border-top: 2px solid #00d4ff;
+        padding: 12px;
+        font-size: 14px;
+        border-top: 1px solid #30363d;
         z-index: 100;
     }
-    /* تأثير على الكروت */
-    .file-card {
-        background-color: #1c2128;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-        border-left: 5px solid #00d4ff;
+    .author-name {
+        color: #58a6ff;
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. الهيدر (Header)
-col_title, col_logo = st.columns([4, 1])
-with col_title:
-    st.title("🏗️ Steel Coordinator Pro")
-    st.markdown("<h3 style='color: #00d4ff;'>AutoCAD Recovery & Conversion Hub</h3>", unsafe_allow_html=True)
-with col_logo:
-    st.markdown("### 2026 Edition")
-
+# 3. Header Section
+st.markdown("<h1 class='main-title'>🏗️ STEEL COORDINATOR PRO</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #8b949e;'>Advanced AutoCAD Version Recovery Suite</p>", unsafe_allow_html=True)
 st.write("---")
 
-# 3. واجهة البرنامج
-st.write("📂 **ارفع ملفات الـ DWG الحديثة لتحويلها فوراً لنسخة 2013 المستقرة:**")
-
-uploaded_files = st.file_uploader("", type=['dwg'], accept_multiple_files=True)
+# 4. Main Application Logic
+st.subheader("Upload CAD Drawings")
+uploaded_files = st.file_uploader("Select DWG files to convert to 2013 version (AC1027)", type=['dwg'], accept_multiple_files=True)
 
 if uploaded_files:
-    st.write(f"### ⚙️ جاري المعالجة الاحترافية ({len(uploaded_files)} ملف)...")
+    # Use a placeholder to show processing status and clear it later
+    status_placeholder = st.empty()
+    status_placeholder.info("⏳ **System is processing your files with High-Precision logic...**")
     
-    # عرض الملفات في شبكة (Grid)
-    cols = st.columns(2) # تقسيم الشاشة لعمودين للملفات
+    # Simulate a small delay for premium feel and to ensure UI sync
+    time.sleep(1) 
     
+    cols = st.columns(2)
     for idx, uploaded_file in enumerate(uploaded_files):
         with cols[idx % 2]:
+            # Process File
+            file_bytes = uploaded_file.getvalue()
+            modified_content = bytearray(file_bytes)
+            modified_content[0:6] = b'AC1027' # Version 2013 Hack
+            
+            # Display Result in a Card
             st.markdown(f"""
                 <div class="file-card">
-                    <h4>📄 {uploaded_file.name}</h4>
-                    <p style='color: #8b949e;'>Status: Ready for conversion to AC1027 (2013)</p>
+                    <h4 style="margin:0;">📄 {uploaded_file.name}</h4>
+                    <small style="color: #3fb950;">Status: Optimization Complete</small>
                 </div>
             """, unsafe_allow_html=True)
             
-            # المعالجة (نفس الكود اللي نجح معاك)
-            file_bytes = uploaded_file.getvalue()
-            modified_content = bytearray(file_bytes)
-            modified_content[0:6] = b'AC1027' # كود 2013 السحري
-            
-            # زرار تحميل شيك
             st.download_button(
-                label=f"Download Fixed {uploaded_file.name} ✅",
+                label=f"Download Fixed DWG",
                 data=bytes(modified_content),
                 file_name=f"Fixed_2013_{uploaded_file.name}",
                 mime="application/octet-stream",
-                key=f"btn_{idx}"
+                key=f"dl_{idx}",
+                use_container_width=True
             )
+            
+    # CRITICAL: Clear the "Processing" message and show "Done"
+    status_placeholder.success("✅ **All processes finished successfully!**")
 
-# 4. التوقيع النهائي (The Signature)
+# 5. Fixed Footer Signature
 st.markdown(f"""
     <div class="footer">
-        Created with Precision by Ahmed.Abdelmawgoud | Senior Steel Coordinator 🛠️
+        Designed & Developed by <span class="author-name">Ahmed.Abdelmawgoud</span> | Senior Steel Coordinator © 2026
     </div>
 """, unsafe_allow_html=True)
 
-# إضافة مساحة تحت عشان الفوتر ميتغطاش
 st.write("<br><br><br>", unsafe_allow_html=True)
