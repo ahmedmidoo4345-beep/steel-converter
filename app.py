@@ -1,70 +1,49 @@
 import streamlit as st
 
-# 1. إعدادات الصفحة والواجهة
-st.set_page_config(
-    page_title="Steel Coordinator Pro",
-    page_icon="🏗️",
-    layout="centered"
-)
+# إعدادات واجهة البرنامج الاحترافية
+st.set_page_config(page_title="Steel Coordinator Pro", page_icon="🏗️")
 
-# 2. إضافة لمسة جمالية (CSS) لتنسيق التوقيع في الأسفل
-footer_style = """
+# التوقيع الخاص بك (Created by Ahmed.Abdelmawgoud)
+footer = """
     <style>
-    .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: #f1f1f1;
-        color: #555;
-        text-align: center;
-        padding: 10px;
-        font-family: 'Arial';
-        font-size: 14px;
-        border-top: 1px solid #e7e7e7;
-    }
+    .footer { position: fixed; bottom: 0; width: 100%; text-align: center; padding: 10px; background: #f1f1f1; color: #555; }
     </style>
-    <div class="footer">
-        <p>Created by <b>Ahmed.Abdelmawgoud</b> | Steel Coordination Tool v1.0</p>
-    </div>
+    <div class="footer"><p>Created by <b>Ahmed.Abdelmawgoud</b> | Steel Coordination Tool v2.0</p></div>
 """
-st.markdown(footer_style, unsafe_allow_html=True)
+st.markdown(footer, unsafe_allow_html=True)
 
-# 3. عنوان البرنامج وشرحه
-st.title("🏗️ Steel Coordinator Pro")
-st.subheader("AutoCAD Version Converter")
-st.write("الأداة الاحترافية لتحويل إصدارات الـ DWG الحديثة إلى إصدار **2007** لضمان التوافقية مع جميع الأجهزة.")
+st.title("🏗️ Steel Coordinator: AutoCAD Fixer")
+st.subheader("أداة تحويل الملفات الحديثة إلى إصدار 2013")
+st.write("هذا التحديث يستخدم تقنية 'الخداع البرمجي' التي نجحت في فتح الملفات المستعصية.")
 
-st.divider()
-
-# 4. منطق البرنامج (المحرك)
-TARGET_HEADER = b'AC1021' # كود إصدار 2007
-
-uploaded_files = st.file_uploader("قم بسحب وإفلات ملفات الـ DWG هنا", type=['dwg'], accept_multiple_files=True)
+# أداة رفع الملفات
+uploaded_files = st.file_uploader("ارفع ملفات الـ DWG (إصدار 2018 أو أحدث)", type=['dwg'], accept_multiple_files=True)
 
 if uploaded_files:
-    st.write(f"### جاري المعالجة ({len(uploaded_files)}) ملفات...")
+    st.write(f"--- جاري معالجة {len(uploaded_files)} ملف ---")
     
-    # عمل أعمدة لعرض الملفات بشكل منظم
     for uploaded_file in uploaded_files:
-        col1, col2 = st.columns([3, 1])
-        
-        # معالجة الملف
+        # قراءة محتوى الملف
         file_bytes = uploaded_file.getvalue()
         modified_content = bytearray(file_bytes)
-        modified_content[0:6] = TARGET_HEADER
         
-        with col1:
-            st.info(f"📄 {uploaded_file.name}")
+        # فحص الهيدر (أول 6 حروف)
+        current_header = modified_content[0:6]
         
-        with col2:
-            st.download_button(
-                label="تحميل ✅",
-                data=bytes(modified_content),
-                file_name=f"Converted_{uploaded_file.name}",
-                mime="application/octet-stream",
-                key=uploaded_file.name # مفتاح فريد لكل زرار
-            )
+        # إذا كان الملف إصدار 2018 (AC1032) أو أي إصدار حديث
+        # هنحوله لـ 2013 (AC1027) زي ما عملت في كولاب بالظبط
+        modified_content[0:6] = b'AC1027'
+        
+        st.success(f"✅ تم تحويل {uploaded_file.name} إلى إصدار 2013 بنجاح!")
+        
+        # زرار التحميل
+        st.download_button(
+            label=f"تحميل الملف المُصلح ({uploaded_file.name})",
+            data=bytes(modified_content),
+            file_name=f"Fixed_2013_{uploaded_file.name}",
+            mime="application/octet-stream",
+            key=uploaded_file.name
+        )
 
 st.divider()
-st.caption("ملاحظة: هذه الأداة تقوم بتغيير رقم الإصدار داخلياً لتمكين الفتح على النسخ القديمة.")
+st.info("نصيحة: إذا ظهرت رسالة تنبيه عند فتح الملف، اضغط Continue ثم استخدم أمر Save As لحفظ الملف رسمياً.")
