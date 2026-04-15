@@ -103,4 +103,4 @@ else:
             content[0:6] = b'AC1027'
             st.download_button(f"Download Fixed {dwg.name}", data=bytes(content), file_name=f"Fixed_{dwg.name}")
 
-st.markdown(f"<div class='footer'>Created by Ahmed.Abdelmawgoud | Engineering Intelligence © 2026</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='footer'>Created by Ahmed.Abdelmawgoud | Em.Tech Office Engineering © 2026</div>", unsafe_allow_html=True)
