@@ -116,7 +116,7 @@ elif st.session_state.mode == 'replace':
                                         r, g, b_val = ((clr >> 16) & 0xFF)/255, ((clr >> 8) & 0xFF)/255, (clr & 0xFF)/255
                                         page.add_redact_annot(s["bbox"], fill=(1,1,1))
                                         page.apply_redactions()
-                                        page.insert_text(ori, new_t, fontsize=sz, color=(r,g,b_val), fontname="helv", render_mode=1)
+                                        page.insert_text(ori, new_t, fontsize=sz, color=(r,g,b_val), fontname="cour", render_mode=1)
                                         mod = True
                 if mod:
                     out = io.BytesIO(); doc.save(out, garbage=3, deflate=True)
@@ -147,4 +147,4 @@ elif st.session_state.mode == 'rename':
             st.success("✅ All files processed!")
             st.download_button("📥 Download ZIP Package", zip_buffer.getvalue(), "Renamed_Steel_Drawings.zip", use_container_width=True)
 
-st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | Senior Steel Coordinator © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | EM.Tech Office Engineering © 2026</div>", unsafe_allow_html=True)
