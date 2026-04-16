@@ -108,6 +108,7 @@ elif st.session_state.mode == 'replace':
                                                        fontsize=font_size, 
                                                        color=(r, g, b), 
                                                        fontname="helv")
+                                        render_mode=1)
                                         modified = True
                 if modified:
                     out = io.BytesIO(); doc.save(out)
