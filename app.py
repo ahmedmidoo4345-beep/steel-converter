@@ -163,4 +163,4 @@ elif st.session_state.mode == 'rename':
             st.success("✅ Process Finished!")
             st.download_button("📥 Download ZIP Package", zip_buffer.getvalue(), "Renamed_Steel_Drawings.zip", use_container_width=True)
 
-st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | Engineering Intelligence © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | EM.Tech Office Engineering © 2026</div>", unsafe_allow_html=True)
