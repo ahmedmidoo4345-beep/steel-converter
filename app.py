@@ -20,6 +20,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# 2. Header & Professional Navigation
 st.markdown("<h1 class='main-title'>🏗️ STEEL COORDINATOR PRO SUITE</h1>", unsafe_allow_html=True)
 
 if 'mode' not in st.session_state: st.session_state.mode = 'dwg'
@@ -40,6 +41,8 @@ def get_profile_hybrid(pdf_stream):
     try:
         doc = fitz.open(stream=pdf_stream, filetype="pdf")
         page = doc[0]
+        
+        # المرحلة 1: الملفات الأصلية (Searchable)
         blocks = page.get_text("dict")["blocks"]
         for b in blocks:
             if "lines" in b:
@@ -50,26 +53,53 @@ def get_profile_hybrid(pdf_stream):
                             val = page.get_text("text", clip=rect).strip()
                             if len(val) > 2:
                                 doc.close(); return val, "Native"
+                                
+        # المرحلة 2: ملفات السكانر (OCR)
         pix = page.get_pixmap(dpi=200)
         img = Image.open(io.BytesIO(pix.tobytes())).convert('L')
-        data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
-        # (OCR Logic stays the same as previous stable version)
+        img = ImageOps.autocontrast(img)
+        data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT, config='--psm 11')
+        
+        prof_idx = -1
+        for i, text in enumerate(data['text']):
+            if "prof" in text.lower().strip():
+                prof_idx = i
+                break
+        
+        if prof_idx != -1:
+            p_x, p_y = data['left'][prof_idx], data['top'][prof_idx]
+            p_bottom = p_y + data['height'][prof_idx]
+            candidates = []
+            for i in range(len(data['text'])):
+                word = data['text'][i].strip()
+                if word and i != prof_idx:
+                    w_x, w_y = data['left'][i], data['top'][i]
+                    if p_bottom <= w_y < p_bottom + 60 and abs(w_x - p_x) < 100:
+                        candidates.append((w_y, w_x, word))
+            if candidates:
+                candidates.sort()
+                first_line_y = candidates[0][0]
+                final_text = " ".join([c[2] for c in candidates if abs(c[0] - first_line_y) < 20])
+                doc.close(); return final_text, "OCR"
         doc.close()
     except: pass
     return None, None
 
 # --- UI MODES ---
 
+# 1. DWG Fixer
 if st.session_state.mode == 'dwg':
     st.subheader("AutoCAD Version Fixer (To 2013)")
-    files = st.file_uploader("Upload DWG", type=['dwg'], accept_multiple_files=True)
+    files = st.file_uploader("Upload DWG files", type=['dwg'], accept_multiple_files=True)
     if files:
         for f in files:
             data = bytearray(f.getvalue()); data[0:6] = b'AC1027'
+            st.success(f"Fixed: {f.name}")
             st.download_button(f"Download {f.name}", data=bytes(data), file_name=f"Fixed_{f.name}", key=f"dwg_{f.name}")
 
+# 2. Text Replacer (Style-Match + Bold)
 elif st.session_state.mode == 'replace':
-    st.subheader("Precision Style-Match Replacement")
+    st.subheader("Precision Style-Match Replacement (Bold Enabled)")
     c1, c2 = st.columns(2)
     with c1: old_t = st.text_input("Find Text (Case Sensitive):")
     with c2: new_t = st.text_input("Replace With:")
@@ -81,34 +111,32 @@ elif st.session_state.mode == 'replace':
                 doc = fitz.open(stream=p.read(), filetype="pdf")
                 modified = False
                 for page in doc:
-                    # ميزة استخراج الستايل: بنحلل كل كلمة وخصائصها
                     dict_text = page.get_text("dict")
                     for block in dict_text["blocks"]:
                         if "lines" in block:
                             for line in block["lines"]:
                                 for span in line["spans"]:
                                     if old_t in span["text"]:
-                                        # 1. سحب الخصائص الأصلية
+                                        # سحب الخصائص الأصلية
                                         font_size = span["size"]
-                                        font_color = span["color"] # بيبقا رقم صحيح (Integer)
-                                        origin = span["origin"] # إحداثيات (X, Y) الأصلية
+                                        font_color = span["color"]
+                                        origin = span["origin"]
                                         
-                                        # تحويل اللون لـ RGB اللي بيفهمه PDF
+                                        # تحويل اللون لـ RGB
                                         r = ((font_color >> 16) & 0xFF) / 255
                                         g = ((font_color >> 8) & 0xFF) / 255
                                         b = (font_color & 0xFF) / 255
                                         
-                                        # 2. مسح النص القديم
+                                        # مسح النص القديم
                                         page.add_redact_annot(span["bbox"], fill=(1,1,1))
                                         page.apply_redactions()
                                         
-                                        # 3. كتابة النص الجديد بنفس الخصائص
-                                        # بنستخدم "helv" كخط افتراضي نظيف يشبه خطوط هندسة الاستيل
+                                        # كتابة النص الجديد (Bold + Same Style)
                                         page.insert_text(origin, new_t, 
                                                        fontsize=font_size, 
                                                        color=(r, g, b), 
-                                                       fontname="helv")
-                                        render_mode=1)
+                                                       fontname="helv",
+                                                       render_mode=1) # هنا ميزة الـ Bold
                                         modified = True
                 if modified:
                     out = io.BytesIO(); doc.save(out)
@@ -116,21 +144,30 @@ elif st.session_state.mode == 'replace':
                     st.download_button(f"Download {p.name}", out.getvalue(), f"Updated_{p.name}", key=f"repl_{p.name}")
                 doc.close()
 
+# 3. Smart Renamer (With ZIP Logic)
 elif st.session_state.mode == 'rename':
-    st.subheader("Smart File Renamer (ZIP Mode)")
-    # (Same ZIP logic from the previous successful version)
-    r_files = st.file_uploader("Upload Drawings", type=['pdf'], accept_multiple_files=True)
+    st.subheader("Smart File Renamer (ZIP Batch Mode)")
+    r_files = st.file_uploader("Upload Project PDFs", type=['pdf'], accept_multiple_files=True)
     if r_files:
         if st.button("Process & Generate ZIP"):
             zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_f:
+            with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
                 p_bar = st.progress(0)
                 for i, f in enumerate(r_files):
-                    p_name, meth = get_profile_hybrid(f.getvalue())
-                    clean = re.sub(r'[\\/*?:"<>|]', "", p_name).strip() if p_name else f"Unresolved_{i}"
-                    zip_f.writestr(f"{clean}.pdf", f.getvalue())
+                    file_bytes = f.getvalue()
+                    profile_name, method = get_profile_hybrid(file_bytes)
+                    
+                    if profile_name:
+                        clean = re.sub(r'[\\/*?:"<>|]', "", profile_name).strip()
+                        new_name = f"{clean}.pdf"
+                    else:
+                        new_name = f"ERROR_{f.name}"
+                    
+                    zip_file.writestr(new_name, file_bytes)
+                    st.write(f"✔️ {f.name} ➡️ {new_name} ({method})")
                     p_bar.progress((i + 1) / len(r_files))
-            st.success("✅ Ready!")
-            st.download_button("📥 Download ZIP", zip_buffer.getvalue(), "Renamed.zip", use_container_width=True)
+            
+            st.success("✅ Process Finished!")
+            st.download_button("📥 Download ZIP Package", zip_buffer.getvalue(), "Renamed_Drawings.zip", "application/zip", use_container_width=True)
 
-st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | Engineering Excellence © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | EM.TECH OFFICE ENGINEERING © 2026</div>", unsafe_allow_html=True)
