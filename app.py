@@ -7,7 +7,7 @@ import re
 import os
 import zipfile
 
-# 1. Config & Styling
+# 1. Page Config & Styling
 st.set_page_config(page_title="Steel Coordinator Pro", page_icon="🏗️", layout="wide")
 
 st.markdown("""
@@ -19,6 +19,10 @@ st.markdown("""
     .status-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 15px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
+
+# إدارة حالة المسح (Clear State)
+if 'rename_uploader_key' not in st.session_state:
+    st.session_state.rename_uploader_key = 0
 
 # 2. Header & Navigation
 st.markdown("<h1 class='main-title'>🏗️ STEEL COORDINATOR PRO SUITE</h1>", unsafe_allow_html=True)
@@ -41,7 +45,7 @@ def get_profile_hybrid(pdf_stream):
     try:
         doc = fitz.open(stream=pdf_stream, filetype="pdf")
         page = doc[0]
-        # Stage 1: Native Searchable
+        # Native Stage
         dict_txt = page.get_text("dict")
         for b in dict_txt["blocks"]:
             if "lines" in b:
@@ -52,10 +56,9 @@ def get_profile_hybrid(pdf_stream):
                             val = page.get_text("text", clip=rect).strip()
                             if len(val) > 2:
                                 doc.close(); return val, "Native"
-        # Stage 2: OCR Fallback
+        # OCR Stage
         pix = page.get_pixmap(dpi=150)
         img = Image.open(io.BytesIO(pix.tobytes())).convert('L')
-        img = ImageOps.autocontrast(img)
         data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT, config='--psm 11')
         prof_idx = -1
         for i, text in enumerate(data['text']):
@@ -80,7 +83,6 @@ def get_profile_hybrid(pdf_stream):
 
 # --- UI MODES ---
 
-# 1. DWG FIXER
 if st.session_state.mode == 'dwg':
     st.subheader("AutoCAD Version Fixer (To 2013)")
     files = st.file_uploader("Upload DWG files", type=['dwg'], accept_multiple_files=True)
@@ -89,20 +91,15 @@ if st.session_state.mode == 'dwg':
             data = bytearray(f.getvalue()); data[0:6] = b'AC1027'
             st.download_button(f"📥 Download {f.name}", data=bytes(data), file_name=f"Fixed_{f.name}", key=f"dwg_{f.name}")
 
-# 2. TEXT REPLACER (The New Stable Version)
 elif st.session_state.mode == 'replace':
-    st.subheader("Precision Style-Match Replacement (Bold Enabled)")
+    st.subheader("Precision Style-Match Replacement")
     c1, c2 = st.columns(2)
     with c1: old_t = st.text_input("Find Text (Case Sensitive):")
     with c2: new_t = st.text_input("Replace With:")
-    
     pdfs = st.file_uploader("Upload PDFs", type=['pdf'], accept_multiple_files=True, key="repl_upload")
-    
     if pdfs and old_t and new_t:
         if st.button("🚀 Start Seamless Replacement", use_container_width=True):
-            status_box = st.empty()
             for p in pdfs:
-                status_box.info(f"Processing: {p.name}...")
                 doc = fitz.open(stream=p.read(), filetype="pdf")
                 mod = False
                 for page in doc:
@@ -116,35 +113,54 @@ elif st.session_state.mode == 'replace':
                                         r, g, b_val = ((clr >> 16) & 0xFF)/255, ((clr >> 8) & 0xFF)/255, (clr & 0xFF)/255
                                         page.add_redact_annot(s["bbox"], fill=(1,1,1))
                                         page.apply_redactions()
-                                        page.insert_text(ori, new_t, fontsize=sz, color=(r,g,b_val), fontname="cour", render_mode=1)
+                                        page.insert_text(ori, new_t, fontsize=sz, color=(r,g,b_val), fontname="helv", render_mode=1)
                                         mod = True
                 if mod:
-                    out = io.BytesIO(); doc.save(out, garbage=3, deflate=True)
+                    out = io.BytesIO(); doc.save(out)
                     st.success(f"✅ Modified: {p.name}")
-                    st.download_button(f"📥 Download {p.name}", out.getvalue(), f"Fixed_{p.name}", key=f"btn_{p.name}_{os.urandom(2).hex()}")
-                else:
-                    st.warning(f"⚠️ Not Found in: {p.name}")
+                    st.download_button(f"📥 Download {p.name}", out.getvalue(), f"Fixed_{p.name}", key=f"repl_{p.name}_{os.urandom(2).hex()}")
                 doc.close()
-            status_box.empty()
 
-# 3. SMART RENAMER (ZIP Batch Mode)
 elif st.session_state.mode == 'rename':
     st.subheader("Smart File Renamer (ZIP Output)")
-    r_files = st.file_uploader("Upload PDFs for Renaming", type=['pdf'], accept_multiple_files=True)
+    
+    # صف للأزرار الخاصة بالتحكم
+    col_up, col_clr = st.columns([4, 1])
+    with col_clr:
+        if st.button("🗑️ Clear All Files", use_container_width=True):
+            st.session_state.rename_uploader_key += 1
+            st.rerun()
+
+    r_files = st.file_uploader("Upload PDFs", type=['pdf'], accept_multiple_files=True, key=f"rename_uploader_{st.session_state.rename_uploader_key}")
+    
     if r_files:
         if st.button("📦 Process & Generate ZIP", use_container_width=True):
             zip_buffer = io.BytesIO()
+            used_names = {} # قاموس لتتبع الأسماء المتكررة
+            
             with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_f:
                 p_bar = st.progress(0)
                 for i, f in enumerate(r_files):
                     f_bytes = f.getvalue()
                     p_name, meth = get_profile_hybrid(f_bytes)
-                    clean = re.sub(r'[\\/*?:"<>|]', "", p_name).strip() if p_name else f"Unresolved_{i}"
-                    zip_f.writestr(f"{clean}.pdf", f_bytes)
-                    st.write(f"✔️ {f.name} ➡️ {clean}.pdf ({meth})")
+                    
+                    if p_name:
+                        base_name = re.sub(r'[\\/*?:"<>|]', "", p_name).strip()
+                        # منطق منع التكرار
+                        if base_name in used_names:
+                            used_names[base_name] += 1
+                            final_name = f"{base_name}_{used_names[base_name]}"
+                        else:
+                            used_names[base_name] = 0
+                            final_name = base_name
+                    else:
+                        final_name = f"Unresolved_{i}"
+                    
+                    zip_f.writestr(f"{final_name}.pdf", f_bytes)
+                    st.write(f"✔️ {f.name} ➡️ {final_name}.pdf")
                     p_bar.progress((i + 1) / len(r_files))
             
-            st.success("✅ All files processed!")
+            st.success("✅ Process Finished!")
             st.download_button("📥 Download ZIP Package", zip_buffer.getvalue(), "Renamed_Steel_Drawings.zip", use_container_width=True)
 
-st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | EM.Tech Office Engineering © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div class='footer'>Developed by Ahmed.Abdelmawgoud | Engineering Intelligence © 2026</div>", unsafe_allow_html=True)
